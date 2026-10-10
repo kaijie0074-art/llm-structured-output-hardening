@@ -1,0 +1,21 @@
+{
+  "id" : "resume-016",
+  "stratum" : "college",
+  "scenario" : "13-clean",
+  "work_exps" : [ {
+    "company" : "某某信息技术服务有限公司",
+    "title" : "产品助理",
+    "description" : "参与订单系统开发，服务 200 家商户，日均处理 3000 单"
+  }, {
+    "company" : "某某传媒有限公司",
+    "title" : "产品助理",
+    "description" : "协助数据报表搭建，覆盖 150 项业务指标",
+    "date_range" : "2024.07-2025.01"
+  } ],
+  "educations" : [ {
+    "school" : "某某大学",
+    "degree" : "电子商务专业本科在读",
+    "date_range" : "2022.09-2026.06"
+  } ],
+  "certificates" : [ "计算机二级", "普通话二甲" ]
+}

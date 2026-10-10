@@ -1,0 +1,21 @@
+{
+  "id" : "resume-003",
+  "stratum" : "college",
+  "scenario" : "12-clean",
+  "work_exps" : [ {
+    "company" : "某某传媒有限公司",
+    "title" : "运营实习生",
+    "description" : "参与订单系统开发，服务 200 家商户，日均处理 3000 单"
+  }, {
+    "company" : "某某咨询有限公司",
+    "title" : "数据分析实习生",
+    "description" : "参与社群运营，维护 200 个用户群，群活跃率 65%",
+    "date_range" : "2024.07-2025.01"
+  } ],
+  "educations" : [ {
+    "school" : "某某职业技术学院",
+    "degree" : "电子商务专业本科在读",
+    "date_range" : "2022.09-2026.06"
+  } ],
+  "certificates" : [ "普通话二甲", "驾驶证" ]
+}

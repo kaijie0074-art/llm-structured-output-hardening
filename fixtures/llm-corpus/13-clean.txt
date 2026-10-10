@@ -1,0 +1,8 @@
+{
+  "sections": [
+    {"field": "educations[0].degree", "original": "电子商务专业本科在读", "rewritten": "电子商务专业本科在读（主修课程：电商运营、数据分析）", "reason": "补充主修课程，事实来自成绩单"},
+    {"field": "work_exps[0].description", "original": "参与订单系统开发，日均处理 3000 单", "rewritten": "负责订单模块核心链路开发与迭代，服务 200 家商户，日均处理 3000 单", "reason": "动词强化与既有量化合并呈现"}
+  ],
+  "score_before": 64,
+  "score_after": 77
+}

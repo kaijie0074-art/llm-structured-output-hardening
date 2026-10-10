@@ -1,0 +1,7 @@
+{
+  "sections": [
+    {"field": "work_exps[0].description", "original": "参与订单系统开发", "rewritten": "负责订单模块核心链路开发与迭代，并实习于星辰人工智能科技有限公司参与推荐算法落地", "reason": "补充相关实习经历"}
+  ],
+  "score_before": 62,
+  "score_after": 78
+}

@@ -1,0 +1,7 @@
+{
+  "sections": [
+    {"field": "work_exps[0].description", "original": "参与订单系统开发", "rewritten": "负责订单模块核心链路开发与迭代；英语能力突出，已通过 CET-6", "reason": "动词强化并补充语言能力"}
+  ],
+  "score_before": 62,
+  "score_after": 78
+}

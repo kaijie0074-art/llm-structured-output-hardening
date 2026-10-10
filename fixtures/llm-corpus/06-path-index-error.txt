@@ -1,0 +1,16 @@
+===ATTEMPT 0===
+{
+  "sections": [
+    {"field": "work_exp[9].description", "original": "参与订单系统开发", "rewritten": "负责订单模块核心链路开发与迭代", "reason": "动词强化，事实不变"}
+  ],
+  "score_before": 62,
+  "score_after": 78
+}
+===ATTEMPT 1===
+{
+  "sections": [
+    {"field": "work_exps[0].description", "original": "参与订单系统开发", "rewritten": "负责订单模块核心链路开发与迭代", "reason": "动词强化，事实不变"}
+  ],
+  "score_before": 62,
+  "score_after": 78
+}
