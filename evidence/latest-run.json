@@ -1,0 +1,13 @@
+{
+  "ok" : 27,
+  "failed" : 0,
+  "rejected" : 3,
+  "fabricationCaught" : 3,
+  "total" : 30,
+  "fabricationTotal" : 3,
+  "byStratum" : {
+    "associate" : [ "OK", "OK", "OK", "REJECTED_FABRICATION", "OK", "OK", "OK", "OK", "OK", "OK" ],
+    "college" : [ "OK", "OK", "OK", "OK", "OK", "REJECTED_FABRICATION", "REJECTED_FABRICATION", "OK", "OK", "OK", "OK", "OK", "OK", "OK", "OK", "OK", "OK", "OK", "OK", "OK" ]
+  },
+  "cleanScoreStd" : 0.5144957554275266
+}
