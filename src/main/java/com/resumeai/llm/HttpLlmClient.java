@@ -72,6 +72,7 @@ public class HttpLlmClient implements LlmClient {
         String user = requirement
                 + (feedback == null ? "" : "\n\n上一次输出存在以下问题，必须修正后重新输出完整 JSON：\n" + feedback);
         try {
+            throttleIfConfigured();
             String body = mapper.writeValueAsString(Map.of(
                     "model", model,
                     "messages", java.util.List.of(
@@ -80,12 +81,19 @@ public class HttpLlmClient implements LlmClient {
                     "temperature", 0.2));
             HttpRequest req = HttpRequest.newBuilder()
                     .uri(URI.create(baseUrl.replaceAll("/+$", "") + "/chat/completions"))
-                    .timeout(Duration.ofSeconds(60))
+                    .timeout(Duration.ofSeconds(120))
                     .header("Content-Type", "application/json")
                     .header("Authorization", "Bearer " + apiKey)
                     .POST(HttpRequest.BodyPublishers.ofString(body))
                     .build();
             HttpResponse<String> resp = http.send(req, HttpResponse.BodyHandlers.ofString());
+            if (resp.statusCode() == 429) {
+                // 共享订阅配额：429 退避 60s 重试（最多 3 次），避免评估整轮作废
+                for (int i = 0; i < 3 && resp.statusCode() == 429; i++) {
+                    Thread.sleep(60_000);
+                    resp = http.send(req, HttpResponse.BodyHandlers.ofString());
+                }
+            }
             if (resp.statusCode() / 100 != 2) {
                 throw new IllegalStateException("LLM API HTTP " + resp.statusCode() + ": " + resp.body());
             }
@@ -98,4 +106,21 @@ public class HttpLlmClient implements LlmClient {
             throw new IllegalStateException("LLM API 调用被中断", e);
         }
     }
+
+    /**
+     * LSOH_THROTTLE_MS：调用间最小间隔（默认 0 不节流）。
+     * 共享订阅配额场景（多代理/批评估）设 1500-2000 可显著降低 429。
+     */
+    private static void throttleIfConfigured() throws InterruptedException {
+        String v = System.getenv("LSOH_THROTTLE_MS");
+        if (v != null && !v.isBlank()) {
+            long ms = Long.parseLong(v.trim());
+            long since = System.nanoTime() - lastCallNanos;
+            long remain = ms * 1_000_000 - since;
+            if (remain > 0) Thread.sleep(remain / 1_000_000);
+        }
+        lastCallNanos = System.nanoTime();
+    }
+
+    private static volatile long lastCallNanos;
 }

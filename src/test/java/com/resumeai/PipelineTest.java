@@ -84,6 +84,121 @@ class PipelineTest {
         assertTrue(LenientRepair.looksTruncated("{\"sections\":"));
         assertFalse(LenientRepair.looksTruncated("{\"a\": 1}"));
     }
+
+    // ---------- 研究 Q1 修复：语料首段提取口径 ----------
+
+    @Test
+    void firstAttempt正确提取标记式语料的首块() {
+        // 标记开头：attempt-0 在首标记**之后**（旧 split 误取空串 → 假崩溃计数）
+        String marker = "===ATTEMPT 0===\n{\"a\":1}\n===ATTEMPT 1===\n{\"a\":2}";
+        assertEquals("{\"a\":1}", com.resumeai.Main.firstAttempt(marker));
+        assertEquals("{\"a\":1}", com.resumeai.Main.firstAttempt("{\"a\":1}"));
+        assertEquals("前缀\n{\"a\":1}\n后缀", com.resumeai.Main.firstAttempt("前缀\n{\"a\":1}\n后缀"));
+    }
+
+    // ---------- 研究 Q2：对抗性损坏（注释注入 / 全角定界符 / 不可见字符） ----------
+
+    @Test
+    void 字符串外行内与块注释被剥离() {
+        String inline = "{\"a\":1, // 备注说明\n\"b\":2}";
+        assertEquals("{\"a\":1, \n\"b\":2}", LenientRepair.repair(inline));
+        String block = "{\"a\":1 /* 备注 */, \"b\":2}";
+        assertEquals("{\"a\":1 , \"b\":2}", LenientRepair.repair(block));
+    }
+
+    @Test
+    void 字符串内部的注释样式文本保留() {
+        String url = "{\"rewritten\":\"详见 https://example.com/a//b 与 /* 重点 */\"}";
+        assertEquals(url, LenientRepair.repair(url));
+    }
+
+    @Test
+    void 全角结构字符归一化为ASCII() {
+        String in = "\uFF5B\"sections\"\uFF1A[\uFF5B\"field\"\uFF1A\"f\"\uFF5D]\uFF0C\"score_before\"\uFF1A62\uFF5D";
+        String out = LenientRepair.repair(in);
+        assertEquals("{\"sections\":[{\"field\":\"f\"}],\"score_before\":62}", out);
+    }
+
+    @Test
+    void 全角双引号定界符映射且串内ASCII引号是内容() {
+        String in = "\uFF5B\uFF02sections\uFF02:[\uFF5B\uFF02rewritten\uFF02:\uFF02他说\"参与\"了\uFF02\uFF5D]\uFF5D";
+        String out = LenientRepair.repair(in);
+        assertEquals("{\"sections\":[{\"rewritten\":\"他说\\\"参与\\\"了\"}]}".replace("\\\"", "\""),
+                out);
+    }
+
+    @Test
+    void 结构位置零宽与NBSP删除但键内零宽保留() {
+        // 结构位置（闭引号与冒号间）：删除 → 可修复
+        String structural = "{\"sections\"\u200B:[],\"score_before\"\u00A0:62}";
+        String expected = "{\"sections\":[],\"score_before\" :62}";
+        assertEquals(expected, LenientRepair.repair(structural));
+        // 键名内部：是字符串内容，词法层不碰（交 L3 拒 + 重试）
+        String inKey = "{\"sections\u200B\":[]}";
+        assertTrue(LenientRepair.repair(inKey).contains("sections\u200B"));
+    }
+
+    @Test
+    void fenceStripper全角括号输出不再截出垃圾片段() {
+        // L1 跨度起点曾落到内层 ASCII { 上，截出 {field...}（可解析的静默脏数据）
+        String in = "\uFF5B\"sections\":[{\"field\":\"f\"}],\"score_after\":78\uFF5D";
+        String stripped = FenceStripper.strip(in);
+        assertTrue(stripped.startsWith("{\"sections\""), "截取起点错误: " + stripped);
+        assertTrue(stripped.endsWith("78}"), "截取终点错误: " + stripped);
+    }
+
+    @Test
+    void 基线口径修正后崩溃数为7静默脏为5() throws Exception {
+        // 2026-10-14 研究 Q1：旧口径把 06/07（标记式语料）误计为崩溃；
+        // 修正后 7 崩（01-05,14,15）+ 5 静默脏（06,07,09,10,11）——脏数据反而更多，
+        // 即"解析成功≠数据正确"比历史记录更严重。
+        java.nio.file.Path corpusDir = corpus;
+        int crash = 0;
+        try (var ds = java.nio.file.Files.newDirectoryStream(corpusDir, "*.txt")) {
+            for (var p : ds) {
+                String raw = com.resumeai.Main.firstAttempt(java.nio.file.Files.readString(p));
+                try {
+                    new ParserChain().parseBaseline(raw);
+                } catch (Exception e) {
+                    crash++;
+                }
+            }
+        }
+        assertEquals(7, crash, "修正口径后语料崩溃数");
+    }
+
+    // ---------- 研究 Q5：DRIFT_SUSPECT 阈值调优（Δ>50，去掉 after≥90 分支） ----------
+
+    @Test
+    void 漂移标记只在跳变超过50时触发() {
+        // 旧规则（|Δ|>25 或 after≥90）在 19 个 benign 采样上误报 47%（Q5 数据）
+        assertFalse(flagged(80, 90), "Δ=10 但 after=90：高分本身无害，不应打标");
+        assertFalse(flagged(70, 95), "Δ=25 未超阈值");
+        assertTrue(flagged(30, 90), "Δ=60 跳变，打标");
+        assertTrue(flagged(0, 100), "Δ=100 极端跳变，打标");
+        assertFalse(flagged(50, 80), "Δ=30 正常润色幅度");
+    }
+
+    private boolean flagged(int before, int after) {
+        OptimizeResult r = result("润色");
+        r.setScoreBefore(before);
+        r.setScoreAfter(after);
+        var outcome = new com.resumeai.model.PipelineOutcome("test",
+                com.resumeai.model.PipelineOutcome.Status.OK, null, r, 1, 1, new java.util.ArrayList<>());
+        invokeMaybeFlagDrift(outcome);
+        return outcome.getLayers().contains("DRIFT_SUSPECT");
+    }
+
+    private void invokeMaybeFlagDrift(com.resumeai.model.PipelineOutcome o) {
+        try {
+            var m = OptimizePipeline.class.getDeclaredMethod("maybeFlagDrift",
+                    com.resumeai.model.PipelineOutcome.class);
+            m.setAccessible(true);
+            m.invoke(new OptimizePipeline(null), o);
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException(e);
+        }
+    }
     // ---------- L3：结构层 ----------
 
     @Test

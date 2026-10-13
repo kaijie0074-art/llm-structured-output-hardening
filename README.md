@@ -19,7 +19,7 @@
 
 ```bash
 mvn test                # 33 用例：15 场景表驱动（历史故障样本）+ 分层单测 + 重试纪律 + 评估阈值
-bash scripts/reproduce.sh   # 基线 9 崩/4 脏复现；加固/评估段配置凭证后跑真实 LLM
+bash scripts/reproduce.sh   # 基线缺陷复现（修正口径：7 崩 + 5 静默脏，见 docs/reproductions/README.md）；加固/评估段配置凭证后跑真实 LLM
 bash scripts/check_artifacts.sh  # 工件自检
 ```
 

@@ -4,12 +4,13 @@
 
 | # | 里程碑 | 判据 | 完成 | 证据 |
 |---|---|---|---|---|
-| 1 | 基线复现 | 15 语料直接 parse，崩溃数与脏数据可量化 | ✅ 10-10 | docs/reproductions/README.md（9 崩/4 脏） |
+| 1 | 基线复现 | 15 语料直接 parse，崩溃数与脏数据可量化 | ✅ 10-10（**口径更正 10-14：7 崩/5 脏**） | docs/reproductions/README.md + docs/research/deep-dive-20261014.md Q1 |
 | 2 | 开源调研 | 每层故障至少 1 个上游机制参照 | ✅ 10-11 | docs/open-source-references.md |
 | 3 | 分层修复 | 15 场景表驱动全绿 | ✅ 10-12 | PipelineTest.语料场景终态 |
 | 4 | 评估闭环 | 黄金集 30 份三指标达标 | ✅ 10-12 | evidence/latest-run.json |
 | 5 | 评审迭代 | 6 意见落地 + 采纳记录 | ✅ 10-13 | docs/reviews/ |
 | 6 | 验收合并 | 验收清单 9/10 项过 | ✅ 10-13 | docs/acceptance.md |
+| 7 | 自主深潜研究 | 6 问实验链 + 5 项修复 + 瓶颈证据 + 复跑 30/30 | ✅ 10-14 | docs/research/deep-dive-20261014.md；evidence/research/ |
 
 ## 过程缺陷台账（修复于 M3/M4）
 

@@ -57,13 +57,77 @@ public final class LenientRepair {
     }
 
     public static String repair(String json) {
-        String out = json;
+        String out = normalizeStructural(json);
         out = QUOTED_KEY.matcher(out).replaceAll("$1\"$2\":");
         out = CN_QUOTED_VALUE.matcher(out).replaceAll("$1\"$2\"");
         out = SN_QUOTED_VALUE.matcher(out).replaceAll("$1\"$2\"");
         out = TRAILING_COMMA.matcher(out).replaceAll("$1");
         out = LINE_COMMENT.matcher(out).replaceAll("");
         return out;
+    }
+
+    /**
+     * 结构感知归一化（研究 Q2 新增）：只在**字符串外部**做三件事——
+     * 1) 剥注释：行内 // 尾注释与成员间块注释（原 LINE_COMMENT 只处理整行注释，
+     *    "a":1, // note 形态会穿透）；字符串内部的注释样式文本是合法内容，原样保留；
+     * 2) 删不可见字符：U+200B/C/D 零宽与 U+FEFF BOM（除 BOM 前缀外无语义）；
+     * 3) 全角结构字符映射：｛｝［］＂：，（U+FF5B 等）→ ASCII 等价物。
+     * 字符串**内部**的一切字符（含全角内容、零宽、注释样式文本）不碰——内容保真优先。
+     */
+    static String normalizeStructural(String json) {
+        StringBuilder out = new StringBuilder(json.length());
+        boolean inString = false;
+        char openQuote = 0;
+        for (int i = 0; i < json.length(); i++) {
+            char c = json.charAt(i);
+            if (inString) {
+                if (c == '\\' && i + 1 < json.length()) {
+                    out.append(c).append(json.charAt(++i)); // 转义对整体保留
+                } else if (c == openQuote) {
+                    out.append(openQuote == '\uFF02' ? '"' : c); // 全角定界符闭串映射为 ASCII
+                    inString = false; // 只有与开串同款定界符才关串（全角＂串内的 ASCII " 是内容，反之亦然）
+                    openQuote = 0;
+                } else {
+                    out.append(c);
+                }
+                continue;
+            }
+            // ---- 字符串外部 ----
+            if (c == '"') {
+                out.append(c);
+                inString = true;
+                openQuote = '"';
+                continue;
+            }
+            if (c == '\uFF02') { // 全角双引号作定界符
+                out.append('"');
+                inString = true;
+                openQuote = '\uFF02';
+                continue;
+            }
+            if (c == '/' && i + 1 < json.length() && json.charAt(i + 1) == '/') {
+                int nl = json.indexOf('\n', i);
+                i = (nl < 0) ? json.length() - 1 : nl - 1; // 跳到行尾（保留 \n 由下一轮追加）
+                continue;
+            }
+            if (c == '/' && i + 1 < json.length() && json.charAt(i + 1) == '*') {
+                int close = json.indexOf("*/", i + 2);
+                i = (close < 0) ? json.length() - 1 : close + 1;
+                continue;
+            }
+            switch (c) {
+                case '\u200B', '\u200C', '\u200D', '\uFEFF' -> { /* 删除 */ }
+                case '\u00A0' -> out.append(' ');
+                case '\uFF5B' -> out.append('{');
+                case '\uFF5D' -> out.append('}');
+                case '\uFF3B' -> out.append('[');
+                case '\uFF3D' -> out.append(']');
+                case '\uFF1A' -> out.append(':');
+                case '\uFF0C' -> out.append(',');
+                default -> out.append(c);
+            }
+        }
+        return out.toString();
     }
 
 }

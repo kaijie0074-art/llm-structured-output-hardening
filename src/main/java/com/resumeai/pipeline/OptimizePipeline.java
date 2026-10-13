@@ -108,13 +108,18 @@ public class OptimizePipeline {
 
     /**
      * L4 语义层：分数漂移监控（不拦截，只打标）。
-     * |after-before| > 25 或 after ≥ 90 → DRIFT_SUSPECT，供 eval 汇总与人工复核。
+     * |after-before| > 50 → DRIFT_SUSPECT，供 eval 汇总与人工复核。
+     *
+     * 阈值依据（研究 Q5，2026-10-14，evidence/research/q5-drift-thresholds.md）：
+     * 同一 benign 输入 19 次采样中，旧规则（|Δ|>25 或 after≥90）误报 47%——
+     * after≥90 分支几乎全由模型自评噪声触发（模型自评 after 在 {10..100} 无锚波动，
+     * temp=0/seed 均不收敛，见 Q4）。跳变幅度才是风险信号：Δ>50 误报降至 11%。
      */
     private void maybeFlagDrift(PipelineOutcome outcome) {
         OptimizeResult r = outcome.getResult();
         if (r.getScoreBefore() != null && r.getScoreAfter() != null) {
             int delta = Math.abs(r.getScoreAfter() - r.getScoreBefore());
-            if (delta > 25 || r.getScoreAfter() >= 90) {
+            if (delta > 50) {
                 outcome.getLayers().add("DRIFT_SUSPECT");
             }
         }

@@ -56,7 +56,7 @@ public final class Main {
         List<String> crashList = new ArrayList<>();
         try (DirectoryStream<Path> ds = Files.newDirectoryStream(corpusDir, "*.txt")) {
             for (Path p : ds) {
-                String raw = Files.readString(p).split("===ATTEMPT")[0].trim();
+                String raw = firstAttempt(Files.readString(p));
                 try {
                     OptimizeResult r = chain.parseBaseline(raw);
                     parsed++;
@@ -83,7 +83,7 @@ public final class Main {
                     String scenario = root.path("scenario").asText("12-clean");
                     Path corpusFile = corpusDir.resolve(scenario + ".txt");
                     if (!Files.exists(corpusFile)) continue;
-                    String raw = Files.readString(corpusFile).split("===ATTEMPT")[0].trim();
+                    String raw = firstAttempt(Files.readString(corpusFile));
                     var parse = chain.parse(raw);
                     if (parse.result == null) continue; // 崩的不算静默
                     String schemaError = schemaGate.validate(parse.tree);
@@ -94,6 +94,29 @@ public final class Main {
             }
             System.out.println("事后审计：解析\"成功\"的输出中，schema/锚点不合格（静默脏数据）: " + dirty);
         }
+    }
+
+    /**
+     * 读取语料的**首段输出**（attempt-0）。
+     * 标记语义与 RecordedLlmClient 一致：行 "===ATTEMPT n===" 宣告**接下来**是第 n 块。
+     * 旧实现 split("===ATTEMPT")[0] 对"标记开头"的文件取到空串，把 06/07/14/15
+     * 误计为解析崩溃（研究 Q1 发现的口径缺陷，详见 docs/research/deep-dive-20261014.md）。
+     */
+    public static String firstAttempt(String corpusText) {
+        List<String> lines = java.util.Arrays.asList(corpusText.split("\n", -1));
+        boolean hasMarker = lines.stream().anyMatch(l -> l.startsWith("===ATTEMPT"));
+        if (!hasMarker) return corpusText.trim();
+        StringBuilder cur = new StringBuilder();
+        boolean inFirst = false;
+        for (String line : lines) {
+            if (line.startsWith("===ATTEMPT")) {
+                if (inFirst) break;       // 第二个标记：首块结束
+                inFirst = true;           // 第一个标记：首块开始
+            } else if (inFirst) {
+                cur.append(line).append('\n');
+            }
+        }
+        return cur.toString().trim();
     }
 
     /** 加固模式：真实 LLM 全管线 + 分层拦截计数。 */

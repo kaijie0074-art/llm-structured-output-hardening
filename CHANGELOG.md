@@ -2,6 +2,29 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号语义化。
 
+## [1.1.0] - 2026-10-14
+
+自主深潜研究（docs/research/deep-dive-20261014.md，6 问实验链，42/42 测试全绿）。
+
+### 修复
+
+- **基线口径**：`Main.firstAttempt` 修正标记式语料首段提取（旧 split 把 06/07 误计为崩溃；
+  基线实为 7 崩 + 5 静默脏——静默脏比历史认知多 1 份）
+- **L1**：FenceStripper 结构归一化前置（全角大括号输出不再截出可解析的垃圾片段）
+
+### 增强
+
+- **L2**：`LenientRepair.normalizeStructural`——字符串外剥行内/块注释、删零宽/BOM、
+  NBSP→空格、全角 ｛｝＂：， 映射 ASCII；字符串内部内容零改动（对抗性损坏 6 类穿透→0）
+- **L4**：DRIFT_SUSPECT 调优为 |Δ|>50（benign 误报 47%→11%，数据驱动）
+- **LLM 客户端**：LSOH_THROTTLE_MS 节流 + 429 退避重试（共享订阅配额）
+
+### 研究结论（瓶颈证据）
+
+- 输出非确定性为服务端固有：temp=0 下 8/8 次输出互异，+seed 仍 4/4 互异，
+  自评分数极差 90/100——逐位复现与低失败率 A/B（需 N≥769/臂）在应用层不可实现
+- 研究后全量复跑：30/30=100%，FAILED=0（evidence/eval-report.md）
+
 ## [1.0.0] - 2026-10-13
 
 合并 PR #1（fix/hardening → main），负责人验收通过（docs/acceptance.md）。
