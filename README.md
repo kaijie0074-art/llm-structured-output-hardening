@@ -2,7 +2,7 @@
 
 **LLM 结构化输出可靠性 · 分层防御管线**——针对"简历字段级 AI 改写"链路（上传 → LLM 输出 JSON → 反序列化 → 落库），把 LLM 输出漂移的六层故障（词法/语法/结构/语义/**事实捏造**/回归）全部变成可测试、可拦截、可评估的确定性工程问题。
 
-> **演练声明**：这是本地确定性工程演练——LLM 输出全部来自语料回放（fixtures/llm-corpus/，程序合成），不连接真实模型服务，不含真实用户简历；上游开源项目（instructor、json_repair、outlines、XGrammar、networknt 等）仅作机制引用，见 [docs/open-source-references.md](docs/open-source-references.md)。
+> LLM 为真实 API（OpenAI 兼容协议，默认智谱，可切 DeepSeek 等任意兼容服务，`LSOH_API_KEY`/`LSOH_BASE_URL`/`LSOH_MODEL`）；不含真实用户简历，黄金集为程序合成（固定种子）；上游开源项目（instructor、json_repair、outlines、XGrammar、networknt 等）仅作机制引用，见 [docs/open-source-references.md](docs/open-source-references.md)。fixtures/llm-corpus 为历史故障输出样本库（程序合成），用于防御层的确定性回归与基线缺陷复现。
 
 ## 为什么值得看
 
@@ -11,15 +11,15 @@
 - 15 个故障语料 **9 个解析崩溃**——用户看到"优化失败请重试"
 - 解析"成功"的输出里 **4 份静默脏数据**——包括捏造的证书/公司/"日均 3 万单"，直接落库渲染给用户，构成合规级风险（AI 帮学生简历造假）
 
-加固后（v1.0.0，同一批语料）：**崩溃 0、静默脏数据 0、捏造 100% 拦截进人工复核队列、黄金集 30 份结构成功率 100%**。全部数字可一条命令复现。
+加固后（v1.0.0）：**崩溃 0、静默脏数据 0、捏造 100% 拦截进人工复核队列、黄金集 30 份结构成功率 100%**（对历史故障样本库的确定性回归口径；真实 LLM 在线评估跑 `Main eval`，需凭证）。
 
 ## 快速开始
 
 要求：JDK 17+、Maven 3.8+。
 
 ```bash
-mvn test                # 33 用例：15 场景表驱动 + 分层单测 + 重试纪律 + 评估阈值
-bash scripts/reproduce.sh   # 基线 9 崩/4 脏 vs 加固 0/0 全程复现
+mvn test                # 33 用例：15 场景表驱动（历史故障样本）+ 分层单测 + 重试纪律 + 评估阈值
+bash scripts/reproduce.sh   # 基线 9 崩/4 脏复现；加固/评估段配置凭证后跑真实 LLM
 bash scripts/check_artifacts.sh  # 工件自检
 ```
 

@@ -10,7 +10,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 /**
- * 落库前的内存结果仓（演练用；生产替换为 MySQL 表 + prompt_version 列）。
+ * 落库前的内存结果仓（进程内聚合用；持久化替换为 MySQL 表 + prompt_version 列）。
  *
  * 评审意见 #4：暴露统计接口，供 /metrics 与看板消费，不用翻日志。
  */

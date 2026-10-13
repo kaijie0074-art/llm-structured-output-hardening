@@ -2,7 +2,7 @@ package com.resumeai;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.resumeai.eval.EvalRunner;
-import com.resumeai.llm.RecordedLlmClient;
+import com.resumeai.llm.HttpLlmClient;
 import com.resumeai.model.OptimizeResult;
 import com.resumeai.model.PipelineOutcome;
 import com.resumeai.model.ResumeSnapshot;
@@ -18,28 +18,37 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * CLI 入口（确定性演练，无任何网络调用）：
+ * CLI 入口：
  *
- *   baseline <corpusDir> [goldenDir]   基线模式：直接 Jackson readValue，复现崩溃与静默脏数据
- *   hardened <corpusDir> <goldenDir>   加固模式：全管线，各防御层拦截计数
- *   eval <goldenDir>                   黄金集评估：三指标 + 分层报告，写 evidence/
+ *   baseline <corpusDir>              基线模式：直接 Jackson readValue 复现历史故障样本的解析崩溃与静默脏数据
+ *   hardened <goldenDir>              加固模式：真实 LLM 全管线，各防御层拦截计数
+ *   eval <goldenDir>                  黄金集评估（真实 LLM）：三指标 + 分层报告，写 evidence/
+ *
+ * hardened/eval 走真实 LLM（OpenAI 兼容协议）：LSOH_API_KEY（或 OPENAI_API_KEY），
+ * 可选 LSOH_BASE_URL / LSOH_MODEL。
  */
 public final class Main {
 
     public static void main(String[] args) throws Exception {
         if (args.length < 1) {
-            System.err.println("用法: baseline <corpusDir> [goldenDir] | hardened <corpusDir> <goldenDir> | eval <goldenDir>");
+            System.err.println("用法: baseline <corpusDir> [goldenDir] | hardened <goldenDir> | eval <goldenDir>");
+            System.err.println("hardened/eval 需要真实 LLM 凭证：LSOH_API_KEY（或 OPENAI_API_KEY），可选 LSOH_BASE_URL/LSOH_MODEL");
             System.exit(2);
         }
-        switch (args[0]) {
-            case "baseline" -> baseline(Path.of(args[1]), args.length > 2 ? Path.of(args[2]) : null);
-            case "hardened" -> hardened(Path.of(args[1]), Path.of(args[2]));
-            case "eval" -> eval(Path.of(args[1]));
-            default -> System.exit(2);
+        try {
+            switch (args[0]) {
+                case "baseline" -> baseline(Path.of(args[1]), args.length > 2 ? Path.of(args[2]) : null);
+                case "hardened" -> hardened(Path.of(args[1]));
+                case "eval" -> eval(Path.of(args[1]));
+                default -> System.exit(2);
+            }
+        } catch (IllegalStateException e) {
+            System.err.println("错误：" + e.getMessage());
+            System.exit(2);
         }
     }
 
-    /** 基线：模拟 10-09 上线的第一版实现（docs/issue-reports/RSO-001）。 */
+    /** 基线：第一版实现（docs/issue-reports/RSO-001）的解析缺陷复现。 */
     static void baseline(Path corpusDir, Path goldenDir) throws Exception {
         ParserChain chain = new ParserChain();
         ObjectMapper mapper = new ObjectMapper();
@@ -64,8 +73,10 @@ public final class Main {
         System.out.println("注意：解析成功 ≠ 数据正确 —— 其中的 path 越界/字段漂移/捏造内容全部静默入库（见 eval 报告的事后审计列）。");
 
         if (goldenDir != null) {
-            // 事后审计：对 parse"成功"的语料跑 schema+fidelity，量化"静默脏数据"规模
+            // 事后审计：对 parse"成功"的历史故障样本做 schema/锚点/漂移静态检查，量化"静默脏数据"规模
             int dirty = 0;
+            var schemaGate = new com.resumeai.pipeline.SchemaGate();
+            var fidelityGate = new com.resumeai.fidelity.FidelityGate();
             try (DirectoryStream<Path> ds = Files.newDirectoryStream(goldenDir, "*.json")) {
                 for (Path p : ds) {
                     var root = mapper.readTree(p.toFile());
@@ -73,32 +84,26 @@ public final class Main {
                     Path corpusFile = corpusDir.resolve(scenario + ".txt");
                     if (!Files.exists(corpusFile)) continue;
                     String raw = Files.readString(corpusFile).split("===ATTEMPT")[0].trim();
-                    try {
-                        OptimizeResult r = chain.parseBaseline(raw);
-                    } catch (Exception e) { continue; } // 崩的不算静默
-                    // 解析成功者走审计
+                    var parse = chain.parse(raw);
+                    if (parse.result == null) continue; // 崩的不算静默
+                    String schemaError = schemaGate.validate(parse.tree);
+                    if (schemaError != null) { dirty++; continue; }
                     ResumeSnapshot snap = mapper.treeToValue(root, ResumeSnapshot.class);
-                    var llm = new RecordedLlmClient(corpusDir);
-                    OptimizePipeline audit = new OptimizePipeline(llm);
-                    PipelineOutcome o = audit.run(scenario, snap);
-                    if (o.getStatus() != PipelineOutcome.Status.OK
-                            || o.getLayers().contains("DRIFT_SUSPECT")) {
-                        dirty++;
-                    }
+                    if (!fidelityGate.check(snap, parse.result).isEmpty()) dirty++;
                 }
             }
-            System.out.println("事后审计：解析\"成功\"的输出中，schema/锚点/漂移不合格（静默脏数据）: " + dirty);
+            System.out.println("事后审计：解析\"成功\"的输出中，schema/锚点不合格（静默脏数据）: " + dirty);
         }
     }
 
-    /** 加固模式：全管线 + 分层拦截计数。 */
-    static void hardened(Path corpusDir, Path goldenDir) throws Exception {
+    /** 加固模式：真实 LLM 全管线 + 分层拦截计数。 */
+    static void hardened(Path goldenDir) throws Exception {
         ObjectMapper mapper = new ObjectMapper();
-        OptimizePipeline pipeline = new OptimizePipeline(new RecordedLlmClient(corpusDir));
+        OptimizePipeline pipeline = new OptimizePipeline(new com.resumeai.llm.HttpLlmClient());
         ResultStore store = new ResultStore();
-            try (DirectoryStream<Path> ds = Files.newDirectoryStream(goldenDir, "*.json")) {
-                List<Path> files = new ArrayList<>();
-                for (Path p : ds) files.add(p);
+        try (DirectoryStream<Path> ds = Files.newDirectoryStream(goldenDir, "*.json")) {
+            List<Path> files = new ArrayList<>();
+            for (Path p : ds) files.add(p);
             for (Path p : files) {
                 var root = mapper.readTree(p.toFile());
                 String scenario = root.path("scenario").asText("12-clean");
@@ -106,7 +111,7 @@ public final class Main {
                 store.save(pipeline.run(scenario, snap));
             }
         }
-        System.out.println("== hardened（分层防御全开）==");
+        System.out.println("== hardened（分层防御全开，真实 LLM）==");
         System.out.println("总数: " + store.size()
                 + " | OK: " + store.countByStatus(PipelineOutcome.Status.OK)
                 + " | REJECTED_FABRICATION: " + store.countByStatus(PipelineOutcome.Status.REJECTED_FABRICATION)

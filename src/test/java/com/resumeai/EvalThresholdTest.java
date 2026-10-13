@@ -12,7 +12,10 @@ class EvalThresholdTest {
 
     @Test
     void 黄金集三指标达标() throws Exception {
-        EvalRunner.EvalReport r = new EvalRunner().run(Path.of("fixtures/golden-resumes"));
+        // 确定性回归：对历史故障样本库（fixtures/llm-corpus，程序合成的故障输出形态），
+        // 防御层行为必须稳定；真实 LLM 的在线评估用 Main.eval（需凭证）
+        EvalRunner.EvalReport r = new EvalRunner().run(Path.of("fixtures/golden-resumes"),
+                new com.resumeai.llm.RecordedLlmClient(Path.of("fixtures/llm-corpus")));
 
         assertEquals(30, r.total(), "黄金集固定 30 份");
         assertEquals(0, r.failed(), "结构失败必须为 0，实际: " + r.summaries());

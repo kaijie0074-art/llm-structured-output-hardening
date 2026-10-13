@@ -63,6 +63,6 @@ mvn test
 
 ## 已知边界
 
-- 语料为静态回放，覆盖 L1-L5 已知故障形态；真实模型的故障分布会漂移，
-  依赖 eval 黄金集 + 线上 needsReview 队列持续回收新形态进语料（见 docs/design.md 第 5 节）。
+- 确定性回归对历史故障样本库（fixtures/llm-corpus，程序合成的 L1-L5 已知故障形态）断言防御层行为；真实模型（HttpLlmClient）的故障分布会漂移，
+  依赖 eval 黄金集 + 线上 needsReview 队列持续回收新形态进样本库（见 docs/design.md 第 5 节）。
 - `LenientRepair` 只修"定界位置"的引号；字符串值内部的中文引号是合法内容，不修（测试覆盖）。

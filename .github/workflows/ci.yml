@@ -14,10 +14,15 @@ jobs:
           distribution: temurin
           java-version: '21'
           cache: maven
-      - name: 全量测试（含语料表驱动与评估阈值）
+      - name: 全量测试（含历史故障样本表驱动与评估阈值）
         run: mvn -B test
-      - name: 评估落盘与工件自检
+      - name: 工件自检
         run: |
           mvn -B -q compile dependency:build-classpath -Dmdep.outputFile=target/cp.txt
-          java -cp "target/classes:$(cat target/cp.txt)" com.resumeai.Main eval fixtures/golden-resumes
           bash scripts/check_artifacts.sh
+      - name: 真实 LLM 评估落盘（有凭证时）
+        if: ${{ secrets.LSOH_API_KEY != '' }}
+        env:
+          LSOH_API_KEY: ${{ secrets.LSOH_API_KEY }}
+          LSOH_BASE_URL: ${{ secrets.LSOH_BASE_URL }}
+        run: java -cp "target/classes:$(cat target/cp.txt)" com.resumeai.Main eval fixtures/golden-resumes

@@ -47,12 +47,12 @@ json_repair 支持补齐缺失的收界符。本项目拒绝：截断点之后�
 
 ## 评估体系（L6）
 
-- 黄金集：30 份合成简历（`tools/GenerateGoldenSet`，固定种子 20261013，本科/大专分层），scenario 字段挂 15 语料
+- 黄金集：30 份合成简历（`tools/GenerateGoldenSet`，固定种子 20261013，本科/大专分层），scenario 字段挂 15 个故障样本标签
 - 三指标：结构成功率（=100% 要求 FAILED=0）、锚点拦截率（3/3）、clean 分数漂移 σ（<5）
 - `prompt_version` 每条落库：改 prompt 出问题可追溯到版本
 
 ## 线上闭环（生产接入说明）
 
-1. 真实 LlmClient 接 DeepSeek/GLM，必开 `response_format=json_object`
+1. 已实现 `HttpLlmClient`（OpenAI 兼容协议，`LSOH_*` 环境变量）；接 DeepSeek/GLM 时建议开 `response_format=json_object`
 2. REJECTED_FABRICATION → needsReview 人工队列（产品侧一个简单工作台）
 3. 每周把 needsReview 里确认的新故障形态固化成新语料 → 回归测试加行

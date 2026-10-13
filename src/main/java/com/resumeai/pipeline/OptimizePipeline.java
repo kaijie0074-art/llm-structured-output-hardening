@@ -35,12 +35,12 @@ public class OptimizePipeline {
     }
 
     public PipelineOutcome run(String scenarioId, ResumeSnapshot snapshot) {
+        String requirement = requirementFor(snapshot);
         long start = System.nanoTime();
         List<String> layers = new java.util.ArrayList<>();
-
         for (int attempt = 0; attempt < MAX_LLM_CALLS; attempt++) {
             String feedback = attempt == 0 ? null : lastFeedback;
-            String raw = llm.complete(scenarioId, attempt, feedback);
+            String raw = llm.complete(scenarioId, requirement, attempt, feedback);
             if (attempt > 0) layers.add("RETRIED");
 
             ParserChain.ParseAttempt parse = parser.parse(raw);
@@ -94,6 +94,17 @@ public class OptimizePipeline {
     }
 
     private String lastFeedback;
+
+    /** 组装完整需求文本：简历快照 + 优化指令 + 输出格式要求。 */
+    private String requirementFor(ResumeSnapshot snapshot) {
+        try {
+            String resumeJson = treeMapper.writeValueAsString(snapshot);
+            return "请优化以下简历（保持字段结构不变，只允许润色措辞，严禁新增不存在的经历/证书/公司/分数）：\n"
+                    + resumeJson;
+        } catch (Exception e) {
+            throw new IllegalStateException("简历快照序列化失败", e);
+        }
+    }
 
     /**
      * L4 语义层：分数漂移监控（不拦截，只打标）。

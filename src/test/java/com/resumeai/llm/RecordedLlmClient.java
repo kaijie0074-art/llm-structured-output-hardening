@@ -8,11 +8,10 @@ import java.nio.file.Path;
 import java.util.List;
 
 /**
- * 确定性语料回放客户端。语料文件 fixtures/llm-corpus/&lt;scenario&gt;.txt，
+ * 历史故障样本回放客户端（测试源集；fixtures/llm-corpus 为程序合成的故障输出样本库，
+ * 用于防御层的确定性回归——对喂入的历史故障形态，防御层行为必须稳定）。
  * 多次尝试用行 "===ATTEMPT n===" 分隔（n 从 0 开始）；attempt 超出时复用最后一块
  * （保证"截断不可恢复"场景两次都拿到坏输出，从而走到 FAILED 上限）。
- *
- * 语料为程序合成，无任何真实模型输出与用户数据。
  */
 public class RecordedLlmClient implements LlmClient {
 
@@ -23,7 +22,7 @@ public class RecordedLlmClient implements LlmClient {
     }
 
     @Override
-    public String complete(String scenarioId, int attempt, String feedback) {
+    public String complete(String scenarioId, String requirement, int attempt, String feedback) {
         try {
             Path file = corpusDir.resolve(scenarioId + ".txt");
             if (!Files.exists(file)) {

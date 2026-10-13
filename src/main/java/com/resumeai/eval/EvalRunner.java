@@ -1,7 +1,7 @@
 package com.resumeai.eval;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.resumeai.llm.RecordedLlmClient;
+import com.resumeai.llm.LlmClient;
 import com.resumeai.model.PipelineOutcome;
 import com.resumeai.model.ResumeSnapshot;
 import com.resumeai.pipeline.OptimizePipeline;
@@ -36,6 +36,11 @@ public class EvalRunner {
                              List<String> summaries) {}
 
     public EvalReport run(Path goldenDir) throws Exception {
+        return run(goldenDir, new com.resumeai.llm.HttpLlmClient());
+    }
+
+    /** llm 由调用方注入：生产走 HttpLlmClient（真实 API），回归测试注入历史故障样本。 */
+    public EvalReport run(Path goldenDir, LlmClient llm) throws Exception {
         List<ResumeSnapshot> resumes = new ArrayList<>();
         List<String> scenarios = new ArrayList<>();
         List<String> stratums = new ArrayList<>();
@@ -54,8 +59,6 @@ public class EvalRunner {
         for (int i = 0; i < resumes.size(); i++) order.add(i);
         order.sort(java.util.Comparator.comparing(scenarios::get));
 
-        RecordedLlmClient llm = new RecordedLlmClient(
-                goldenDir.resolve("../llm-corpus").normalize());
         OptimizePipeline pipeline = new OptimizePipeline(llm);
         ResultStore store = new ResultStore();
 
