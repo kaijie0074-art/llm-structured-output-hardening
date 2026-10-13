@@ -1,12 +1,15 @@
 name: ci
 on:
   push:
-    branches: [main]
+    branches: [main, fix/hardening]
   pull_request:
 
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      LSOH_API_KEY: ${{ secrets.LSOH_API_KEY }}
+      LSOH_BASE_URL: ${{ secrets.LSOH_BASE_URL }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -21,8 +24,5 @@ jobs:
           mvn -B -q compile dependency:build-classpath -Dmdep.outputFile=target/cp.txt
           bash scripts/check_artifacts.sh
       - name: 真实 LLM 评估落盘（有凭证时）
-        if: ${{ secrets.LSOH_API_KEY != '' }}
-        env:
-          LSOH_API_KEY: ${{ secrets.LSOH_API_KEY }}
-          LSOH_BASE_URL: ${{ secrets.LSOH_BASE_URL }}
+        if: env.LSOH_API_KEY != ''
         run: java -cp "target/classes:$(cat target/cp.txt)" com.resumeai.Main eval fixtures/golden-resumes
