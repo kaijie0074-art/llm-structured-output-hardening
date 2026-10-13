@@ -25,8 +25,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 public class HttpLlmClient implements LlmClient {
 
     public static final String SYSTEM_PROMPT =
-            "你是简历优化器。只输出一个 JSON 对象（优化后的简历），不要任何解释文字、"
-            + "代码块围栏或注释。只允许基于输入简历中真实存在的内容润色措辞，"
+            "你是简历优化器。只输出一个 JSON 对象，格式严格为："
+            + "{\"sections\":[{\"field\":\"work_exps[0].description\",\"original\":\"原文字段原文\","
+            + "\"rewritten\":\"润色后的文字\",\"reason\":\"修改理由\"}],"
+            + "\"score_before\":整数,\"score_after\":整数}。"
+            + "sections 数组覆盖所有需要润色的字段，field 必须指向原简历中真实存在的字段"
+            + "（work_exps[i].description、educations[i].school 等），original 必须是该字段原文。"
+            + "score_before/score_after 为 0-100 整数。不要任何解释文字、代码块围栏或注释。"
+            + "只允许基于输入简历中真实存在的内容润色措辞，"
             + "严禁新增输入中不存在的经历、证书、公司或分数。";
 
     private final HttpClient http = HttpClient.newBuilder()
