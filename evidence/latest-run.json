@@ -1,13 +1,13 @@
 {
-  "cleanScoreStd" : 18.005082797253326,
-  "ok" : 29,
-  "failed" : 1,
+  "cleanScoreStd" : 16.786335089936518,
+  "ok" : 30,
+  "failed" : 0,
   "rejected" : 0,
   "fabricationCaught" : 0,
   "total" : 30,
   "fabricationTotal" : 3,
   "byStratum" : {
     "associate" : [ "OK", "OK", "OK", "OK", "OK", "OK", "OK", "OK", "OK", "OK" ],
-    "college" : [ "OK", "OK", "OK", "OK", "FAILED", "OK", "OK", "OK", "OK", "OK", "OK", "OK", "OK", "OK", "OK", "OK", "OK", "OK", "OK", "OK" ]
+    "college" : [ "OK", "OK", "OK", "OK", "OK", "OK", "OK", "OK", "OK", "OK", "OK", "OK", "OK", "OK", "OK", "OK", "OK", "OK", "OK", "OK" ]
   }
 }
